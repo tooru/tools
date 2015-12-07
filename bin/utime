@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+
+require 'time'
+
+unless ARGV.length == 2
+  STDERR.puts("usage: #{File.basename($0)} TIME file")
+  exit 1
+end
+
+time = Time.parse(ARGV[0])
+File.utime(time, time, ARGV[1])
