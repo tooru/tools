@@ -2,10 +2,16 @@
 
 require 'time'
 
-unless ARGV.length == 2
+case ARGV.length
+when 1
+  file = ARGV[0]
+  puts File.atime(file)
+  puts File.ctime(file)
+  puts File.mtime(file)
+when 2
+  time = Time.parse(ARGV[0])
+  File.utime(time, time, ARGV[1])
+else
   STDERR.puts("usage: #{File.basename($0)} TIME file")
   exit 1
 end
-
-time = Time.parse(ARGV[0])
-File.utime(time, time, ARGV[1])
