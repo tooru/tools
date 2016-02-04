@@ -1,0 +1,65 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+require 'optparse'
+
+mode="identicals"
+delimiter="\n"
+
+opt = OptionParser.new
+
+opt.on("-d", "--show-duplicates") do
+  mode = "duplicates"
+end
+opt.on("-0", "--null-delimiter") do
+  delimiter = "\0"
+end
+
+opt.parse!(ARGV)
+
+dir = ARGV.length == 0 ? "." : ARGV[0]
+
+files = Dir.glob(File.join(dir, "*"))
+
+ids = {}
+
+files.each_with_index do |f0, i|
+  if ids.has_key?(f0)
+    next
+  end
+  
+  ((i+1)..(files.length-1)).each do |j|
+    f1 = files[j]
+
+    if ids.has_key?(f1)
+      next
+    end
+
+    if FileUtils.identical?(f0, f1)
+      if ids.has_key?(f0)
+        ids[f0] << f1
+      else
+        ids[f0] = [f0, f1]
+      end
+      ids[f1] = []
+    end
+  end
+end
+
+if ids.size == 0
+  puts "no identicals"
+  exit 1
+else
+  ids.each do |k, v|
+    if v.size > 0
+      if mode == "identicals"
+        p v
+      else
+        v[1..-1].each do |f|
+          printf("%s%s", f, delimiter)
+        end
+      end
+    end
+  end
+  exit 0
+end
