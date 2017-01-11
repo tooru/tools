@@ -1,0 +1,95 @@
+#!/usr/bin/ruby
+
+def edit_message(file)
+  lines = nil
+  open(file) do |f|
+    lines = f.readlines
+  end
+  message = create_commit_message(lines)
+
+  open(file, "w") do |f|
+    f.puts message
+    f.puts lines[1..-1]
+  end
+end
+
+MODIFIES = {
+  "modified" => "M",
+  "new file" => "A",
+  "deleted"  => "D",
+  "renamed"  => "R",
+}
+
+def create_commit_message(lines)
+  commitable_files = Hash.new([])
+
+  original_message = lines.collect do |line|
+    line.sub(/\s+$/, "")
+  end.select do |line|
+    line !~ /^#/ && line != ""
+  end.join()
+
+  if original_message !~ /^\s*$/
+    return original_message
+  end
+
+  lines.each do |line|
+    if /#?\s+Changes not staged for commit:/ =~ line
+      #break
+    end
+
+    if /#?\s+(#{MODIFIES.keys.join("|")}): +(.+)$/ =~ line
+      commitable_files[MODIFIES[$1]] += [$2]
+    end
+  end
+
+  message = %w(A D M).select do |m|
+    commitable_files.has_key?(m)
+  end.collect do |m|
+    create_commit_message_with_modifier(commitable_files[m], m)
+  end
+
+  if commitable_files.has_key?("R")
+    message << create_rename_commit_message_with_modifier(commitable_files["R"])
+  end
+
+  message.join("\n")
+end
+
+MESSAGES = {
+  "A" => "Added",
+  "D" => "Deleted",
+  "M" => "Modified",
+  "R" => "Renamed",
+}
+
+def create_commit_message_with_modifier(files, m)
+  format("%s %s.", MESSAGES[m], format_commit_files(files.map {|f| File.basename(f)}))
+end
+
+def create_rename_commit_message_with_modifier(files)
+  format("%s %s.", MESSAGES["R"], format_commit_files(files.collect do |f|
+                                                        /(\S+)\s+->\s+(\S+)/ =~ f
+                                                        format("%s -> %s", File.basename($1), File.basename($2))
+                                                      end))
+end
+
+def format_commit_files(files)
+  case files.size
+  when 1
+    files[0]
+  when 2
+    format("%s and %s", files[0], files[1])
+  else
+    format("%s and other %d files", files[0], files.size - 1)
+  end
+end
+
+case ARGV.size
+when 0
+  puts create_commit_message(readlines)
+when 1
+  edit_message(ARGV[0])
+else
+  raise
+end
